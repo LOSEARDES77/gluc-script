@@ -1,5 +1,4 @@
-use std::env::args;
-use std::process;
+use clap::Parser;
 use std::string::String;
 
 #[derive(Debug)]
@@ -15,24 +14,40 @@ enum Arrow {
     RateOutOfRange,
 }
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg()]
+    url: String,
+}
+
+fn parse_url(url: &str) -> String {
+    let res;
+    let part_1;
+    if url.ends_with("/") {
+        part_1 = "api/v1/entries/sgv?count=1"
+    } else {
+        part_1 = "/api/v1/entries/sgv?count=1"
+    }
+    if url.starts_with("https://") || url.starts_with("http://") {
+        res = format!("{}{}", url, part_1);
+    } else {
+        res = format!("https://{}{}", url, part_1);
+    }
+
+    return res;
+}
 #[tokio::main]
 async fn main() {
-    let args = args().collect::<Vec<String>>(); // Get command line arguments
-    if args.len() != 2 {
-        println!("Usage: {} <nightscout-url>", args[0]);
-        process::exit(1);
-    }
-    let url;
-    {
-        let aditional;
-        if args[1].ends_with("/") { aditional = "api/v1/entries/sgv?count=1" } else { aditional = "/api/v1/entries/sgv?count=1" }
-        if args[1].starts_with("https://") || args[1].starts_with("http://") {
-            url = format!("{}{}", args[1], aditional);
-        } else {
-            url = format!("https://{}{}", args[1], aditional);
-        }
-    }
-    let resp = reqwest::get(url.to_string()).await.expect("REASON").text().await.unwrap();
+    let args = Args::parse();
+
+    let url = parse_url(&args.url);
+    let resp = reqwest::get(url.to_string())
+        .await
+        .expect("REASON")
+        .text()
+        .await
+        .unwrap();
     let measurement: u16 = resp.split_whitespace().nth(2).unwrap().parse().unwrap();
     let arrow_type = resp.split_whitespace().nth(3).unwrap().replace("\"", "");
     let arrow;
@@ -49,17 +64,34 @@ async fn main() {
         _ => panic!("Arrow not found"),
     };
     match arrow_type {
-        Arrow::DoubleUp => {arrow = "⇈";},
-        Arrow::SingleUp => {arrow = "↑";},
-        Arrow::FortyFiveUp => {arrow = "↗";},
-        Arrow::Flat => {arrow = "→";},
-        Arrow::FortyFiveDown => { arrow = "↘";}
-        Arrow::SingleDown => {arrow = "↓";}
-        Arrow::DoubleDown => {arrow = "⇊";}
-        Arrow::NotComputable => {arrow = "-";}
-        Arrow::RateOutOfRange => {arrow = "-";}
+        Arrow::DoubleUp => {
+            arrow = "⇈";
+        }
+        Arrow::SingleUp => {
+            arrow = "↑";
+        }
+        Arrow::FortyFiveUp => {
+            arrow = "↗";
+        }
+        Arrow::Flat => {
+            arrow = "→";
+        }
+        Arrow::FortyFiveDown => {
+            arrow = "↘";
+        }
+        Arrow::SingleDown => {
+            arrow = "↓";
+        }
+        Arrow::DoubleDown => {
+            arrow = "⇊";
+        }
+        Arrow::NotComputable => {
+            arrow = "-";
+        }
+        Arrow::RateOutOfRange => {
+            arrow = "-";
+        }
     }
 
     println!("{} {}", arrow, measurement);
-
 }
